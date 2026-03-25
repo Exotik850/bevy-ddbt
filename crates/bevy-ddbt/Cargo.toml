@@ -1,0 +1,9 @@
+[package]
+name = "bevy-ddbt"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+bevy-ddbt-protocol = { path = "../bevy-ddbt-protocol" }
+bevy = "0.18.1"
+bevy_wasm = "0.10"

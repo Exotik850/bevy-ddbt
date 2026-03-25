@@ -1,27 +1,14 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, ops::ControlFlow};
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::errors::InstructionError;
 
-#[typetag::serde]
-pub trait Action: Send + Sync {
-    fn execute(&self, ctx: &mut InstructionContext);
-}
 
-#[typetag::serde]
-pub trait Sensor: Send + Sync {
-    fn matches(&self, ctx: &InstructionContext) -> bool;
-}
 
-#[derive(Debug)]
-pub struct InstructionContext {
-    // Add any context fields as needed
-    pub blackboard: HashMap<String, Value>,
-}
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Default, Serialize)]
 pub struct Instruction {
     #[serde(default)]
     pub sensors: Vec<Box<dyn Sensor>>,
@@ -34,8 +21,20 @@ pub struct Instruction {
 impl Instruction {
     /// Deserializes an Instruction using typetag's polymorphic deserialization.
     pub fn deserialize(data: &Value) -> Result<Self, InstructionError> {
-        serde_json::from_value(data.clone())
-            .map_err(|e| InstructionError::Deserialization { source: e })
+        let mut instruction = Instruction::default();
+        if let Some(sensors) = data.get("sensors") {
+            instruction.sensors = serde_json::from_value(sensors.clone())
+                .map_err(|e| InstructionError::Deserialization { source: e })?;
+        }
+        if let Some(actions) = data.get("actions") {
+            instruction.actions = serde_json::from_value(actions.clone())
+                .map_err(|e| InstructionError::Deserialization { source: e })?;
+        }
+        if let Some(children) = data.get("children") {
+            instruction.children = serde_json::from_value(children.clone())
+                .map_err(|e| InstructionError::Deserialization { source: e })?;
+        }
+        Ok(instruction)
     }
 
     fn execute(&self, ctx: &mut InstructionContext) -> bool {
